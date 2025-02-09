@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heartbeat Sensor & Step Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="heart"></div>
+    <div class="stats">
+        <p>Distance Walked: <span id="distance">0</span> meters</p>
+        <p>Steps Taken: <span id="steps">0</span></p>
+    </div>
+
+    <script>
+        const socket = io("http://localhost:5000");
+
+        if (window.DeviceMotionEvent) {
+            window.addEventListener('devicemotion', event => {
+                let acceleration = event.accelerationIncludingGravity;
+                let intensity = Math.sqrt(acceleration.x ** 2 + acceleration.y ** 2 + acceleration.z ** 2);
+                socket.emit("heartbeat", { intensity });
+            });
+        } else {
+            alert('Device Motion not supported');
+        }
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(position => {
+                let lat = position.coords.latitude;
+                let lon = position.coords.longitude;
+                socket.emit("update_position", { latitude: lat, longitude: lon });
+            }, error => {
+                console.error('Geolocation error:', error);
+            }, { enableHighAccuracy: true });
+        } else {
+            alert('Geolocation not supported');
+        }
+
+        socket.on("update_stats", data => {
+            document.getElementById("distance").textContent = data.distance;
+            document.getElementById("steps").textContent = data.steps;
+        });
+
+        socket.on("update_heartbeat", data => {
+            let heart = document.querySelector(".heart");
+            heart.style.animationDuration = `${1 / data.speed}s`;
+        });
+    </script>
+</body>
+</html>
